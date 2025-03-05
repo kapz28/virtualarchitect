@@ -5,6 +5,21 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 })
 
+type AnalysisResults = {
+  layout: {
+    score: number;
+    feedback: string[];
+  };
+  lighting: {
+    score: number;
+    feedback: string[];
+  };
+  flow: {
+    score: number;
+    feedback: string[];
+  };
+}
+
 export async function POST(request: Request) {
   try {
     const { imageUrl } = await request.json()
@@ -17,7 +32,7 @@ export async function POST(request: Request) {
           content: [
             {
               type: "text",
-              text: "Analyze this floorplan and provide detailed feedback on: 1) Layout efficiency (score out of 100 and specific feedback) 2) Natural lighting assessment (score and feedback) 3) Traffic flow analysis (score and feedback). Format the response as JSON."
+              text: "Analyze this floorplan and provide feedback in the following JSON format:\n{\n  \"layout\": {\n    \"score\": <number 0-100>,\n    \"feedback\": [\"detailed point 1\", \"detailed point 2\", ...]\n  },\n  \"lighting\": {\n    \"score\": <number 0-100>,\n    \"feedback\": [\"detailed point 1\", \"detailed point 2\", ...]\n  },\n  \"flow\": {\n    \"score\": <number 0-100>,\n    \"feedback\": [\"detailed point 1\", \"detailed point 2\", ...]\n  }\n}"
             },
             {
               type: "image_url",
@@ -32,7 +47,7 @@ export async function POST(request: Request) {
       response_format: { type: "json_object" }
     })
 
-    const analysis = JSON.parse(response.choices[0].message.content || '{}')
+    const analysis: AnalysisResults = JSON.parse(response.choices[0].message.content || '{}')
     return NextResponse.json(analysis)
   } catch (error) {
     console.error('Analysis error:', error)

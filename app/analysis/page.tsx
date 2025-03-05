@@ -12,25 +12,57 @@ import { ArrowLeft, MessageSquare, Maximize, Minimize, Volume2, VolumeX } from "
 import ChatInterface from "@/components/chat-interface"
 import Link from "next/link"
 
+// Define the type at the top level
+type AnalysisResults = {
+  layout: {
+    score: number;
+    feedback: string[];
+  };
+  lighting: {
+    score: number;
+    feedback: string[];
+  };
+  flow: {
+    score: number;
+    feedback: string[];
+  };
+}
+
 export default function AnalysisPage() {
   const searchParams = useSearchParams()
   const imageUrl = searchParams.get("image") || "/placeholder.svg"
   const analysisParam = searchParams.get("analysis")
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [isVoiceEnabled, setIsVoiceEnabled] = useState(false)
-  const [analysisResults, setAnalysisResults] = useState<null | {
-    layout: { score: number; feedback: string[] }
-    lighting: { score: number; feedback: string[] }
-    flow: { score: number; feedback: string[] }
-  }>(null)
+  const [analysisResults, setAnalysisResults] = useState<AnalysisResults | null>(null)
+
+  // Add type guard for the analysis results
+  const isValidAnalysis = (analysis: any): analysis is AnalysisResults => {
+    return (
+      analysis &&
+      typeof analysis.layout?.score === 'number' &&
+      Array.isArray(analysis.layout?.feedback) &&
+      typeof analysis.lighting?.score === 'number' &&
+      Array.isArray(analysis.lighting?.feedback) &&
+      typeof analysis.flow?.score === 'number' &&
+      Array.isArray(analysis.flow?.feedback)
+    )
+  }
 
   useEffect(() => {
     if (analysisParam) {
       try {
+        console.log("analysisParam", analysisParam);
         const parsedAnalysis = JSON.parse(decodeURIComponent(analysisParam))
-        setAnalysisResults(parsedAnalysis)
+        console.log("parsedAnalysis", parsedAnalysis);
+        if (isValidAnalysis(parsedAnalysis)) {
+          setAnalysisResults(parsedAnalysis)
+        } else {
+          console.error('Invalid analysis format')
+        }
       } catch (error) {
         console.error('Failed to parse analysis results:', error)
+        // Could add error state handling here
       }
     }
   }, [analysisParam])
@@ -42,17 +74,17 @@ export default function AnalysisPage() {
   const toggleVoice = () => {
     setIsVoiceEnabled(!isVoiceEnabled)
 
-    if (!isVoiceEnabled) {
-      // Speak the summary when voice is enabled
-      const summary =
-        "I've analyzed your floorplan and found several opportunities for improvement. The layout scores 75 out of 100, with good kitchen organization but the living room could use better furniture placement. Natural lighting scores 60 out of 100, with good southern exposure but the kitchen needs more light sources. Traffic flow scores 85 out of 100, with good circulation between spaces."
+    if (!isVoiceEnabled && analysisResults) {
+      const summary = `I've analyzed your floorplan and found several opportunities for improvement. 
+        The layout scores ${analysisResults.layout.score} out of 100, ${analysisResults.layout.feedback[0]}. 
+        Natural lighting scores ${analysisResults.lighting.score} out of 100, ${analysisResults.lighting.feedback[0]}. 
+        Traffic flow scores ${analysisResults.flow.score} out of 100, ${analysisResults.flow.feedback[0]}.`
 
       const utterance = new SpeechSynthesisUtterance(summary)
       utterance.rate = 0.9
       utterance.pitch = 1
       window.speechSynthesis.speak(utterance)
     } else {
-      // Cancel any ongoing speech when voice is disabled
       window.speechSynthesis.cancel()
     }
   }
@@ -125,9 +157,9 @@ export default function AnalysisPage() {
                         <CardTitle>Layout Analysis</CardTitle>
                         <Badge
                           variant={
-                            analysisResults.layout.score >= 80
+                            analysisResults?.layout?.score >= 80
                               ? "default"
-                              : analysisResults.layout.score >= 60
+                              : analysisResults?.layout?.score >= 60
                                 ? "secondary"
                                 : "destructive"
                           }
@@ -137,14 +169,12 @@ export default function AnalysisPage() {
                       </div>
                     </CardHeader>
                     <CardContent>
-                      <ul className="space-y-2">
-                        {analysisResults.layout.feedback.map((item, index) => (
-                          <li key={index} className="flex items-start gap-2">
-                            <span className="mt-1 h-2 w-2 rounded-full bg-primary" />
-                            <span>{item}</span>
-                          </li>
-                        ))}
-                      </ul>
+                      <div className="space-y-2">
+                        <div className="flex items-start gap-2">
+                          <span className="mt-1 h-2 w-2 rounded-full bg-primary" />
+                          <span>{analysisResults.layout.feedback[0]}</span>
+                        </div>
+                      </div>
                     </CardContent>
                   </Card>
                 </TabsContent>
@@ -155,26 +185,24 @@ export default function AnalysisPage() {
                         <CardTitle>Lighting Analysis</CardTitle>
                         <Badge
                           variant={
-                            analysisResults.lighting.score >= 80
+                            analysisResults.lighting?.score >= 80
                               ? "default"
-                              : analysisResults.lighting.score >= 60
+                              : analysisResults.lighting?.score >= 60
                                 ? "secondary"
                                 : "destructive"
                           }
                         >
-                          Score: {analysisResults.lighting.score}/100
+                          Score: {analysisResults.lighting?.score}/100
                         </Badge>
                       </div>
                     </CardHeader>
                     <CardContent>
-                      <ul className="space-y-2">
-                        {analysisResults.lighting.feedback.map((item, index) => (
-                          <li key={index} className="flex items-start gap-2">
-                            <span className="mt-1 h-2 w-2 rounded-full bg-primary" />
-                            <span>{item}</span>
-                          </li>
-                        ))}
-                      </ul>
+                      <div className="space-y-2">
+                        <div className="flex items-start gap-2">
+                          <span className="mt-1 h-2 w-2 rounded-full bg-primary" />
+                          <span>{analysisResults.lighting?.feedback[0]}</span>
+                        </div>
+                      </div>
                     </CardContent>
                   </Card>
                 </TabsContent>
@@ -185,26 +213,24 @@ export default function AnalysisPage() {
                         <CardTitle>Traffic Flow Analysis</CardTitle>
                         <Badge
                           variant={
-                            analysisResults.flow.score >= 80
+                            analysisResults.flow?.score >= 80
                               ? "default"
-                              : analysisResults.flow.score >= 60
+                              : analysisResults.flow?.score >= 60
                                 ? "secondary"
                                 : "destructive"
                           }
                         >
-                          Score: {analysisResults.flow.score}/100
+                          Score: {analysisResults.flow?.score}/100
                         </Badge>
                       </div>
                     </CardHeader>
                     <CardContent>
-                      <ul className="space-y-2">
-                        {analysisResults.flow.feedback.map((item, index) => (
-                          <li key={index} className="flex items-start gap-2">
-                            <span className="mt-1 h-2 w-2 rounded-full bg-primary" />
-                            <span>{item}</span>
-                          </li>
-                        ))}
-                      </ul>
+                      <div className="space-y-2">
+                        <div className="flex items-start gap-2">
+                          <span className="mt-1 h-2 w-2 rounded-full bg-primary" />
+                          <span>{analysisResults.flow?.feedback[0]}</span>
+                        </div>
+                      </div>
                     </CardContent>
                   </Card>
                 </TabsContent>
@@ -249,7 +275,9 @@ export default function AnalysisPage() {
               </CardHeader>
               <Separator />
               <CardContent className="p-0">
-                <ChatInterface analysisResults={analysisResults} isVoiceEnabled={isVoiceEnabled} />
+                {analysisResults && (
+                  <ChatInterface analysisResults={analysisResults} isVoiceEnabled={isVoiceEnabled} />
+                )}
               </CardContent>
             </Card>
           </div>

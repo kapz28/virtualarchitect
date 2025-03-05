@@ -18,6 +18,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Send, Mic, MicOff, User } from "lucide-react"
 import { generateText } from "ai"
 import { openai } from "@ai-sdk/openai"
+import OpenAI from "openai"
 
 type Message = {
   role: "user" | "assistant"
@@ -128,7 +129,6 @@ export default function ChatInterface({
     setIsLoading(true)
 
     try {
-      // Create a context string from the analysis results
       const analysisContext = `
         Layout Efficiency Score: ${analysisResults.layout.score}/100
         Layout Feedback: ${analysisResults.layout.feedback.join(". ")}
@@ -140,27 +140,34 @@ export default function ChatInterface({
         Traffic Flow Feedback: ${analysisResults.flow.feedback.join(". ")}
       `
 
-      // Generate response using AI SDK
-      const { text } = await generateText({
-        model: openai("gpt-4o"),
-        prompt: input,
-        system: `You are a Virtual Architect, an AI assistant specialized in analyzing floorplans and providing architectural advice. 
-        You have analyzed a floorplan with the following results:
-        
-        ${analysisContext}
-        
-        Respond to the user's questions about their floorplan based on this analysis. Be helpful, specific, and provide actionable recommendations. 
-        If asked about something not covered in the analysis, you can make reasonable assumptions based on common architectural principles, 
-        but make it clear when you're making an assumption versus referring to the specific analysis.
-        Keep responses concise and focused on architectural insights.`,
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          message: input,
+          analysisContext,
+        }),
       })
+
+      const data = await response.json()
+      console.log("response data:", data)
+
+      if (!response.ok) {
+        throw new Error('Failed to generate response')
+      }
 
       const assistantMessage: Message = {
         role: "assistant",
-        content: text,
+        content: data.content,
       }
 
-      setMessages((prev) => [...prev, assistantMessage])
+      setMessages((prev) => {
+        const newMessages = [...prev, assistantMessage];
+        console.log("Updated messages:", newMessages);
+        return newMessages;
+      })
     } catch (error) {
       console.error("Error generating response:", error)
 
